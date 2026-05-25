@@ -243,7 +243,11 @@ def notify(text: str) -> None:
 def main() -> int:
     api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()
     if not api_key:
-        print("GOOGLE_MAPS_API_KEY is required.", file=sys.stderr)
+        print(
+            "GOOGLE_MAPS_API_KEY is required. "
+            "For GitHub Actions, add it under Settings → Secrets and variables → Actions.",
+            file=sys.stderr,
+        )
         return 1
 
     locations_data = load_locations()

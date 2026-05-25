@@ -12,12 +12,37 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
+      - name: Verify required secrets
+        run: |
+          missing=0
+          if [ -z "${{ secrets.GOOGLE_MAPS_API_KEY }}" ]; then
+            echo "::error::Repository secret GOOGLE_MAPS_API_KEY is not set. Add it under Settings → Secrets and variables → Actions."
+            missing=1
+          fi
+          if [ -z "${{ secrets.LOCATIONS_JSON }}" ]; then
+            echo "::error::Secret LOCATIONS_JSON is not available. Paste your locations JSON (same format as locations.example.json)."
+            missing=1
+          fi
+          email_ok=0
+          if [ -n "${{ secrets.SMTP_HOST }}" ] && [ -n "${{ secrets.SMTP_USER }}" ] && [ -n "${{ secrets.SMTP_PASSWORD }}" ] && [ -n "${{ secrets.NOTIFY_EMAIL_TO }}" ]; then
+            email_ok=1
+          fi
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ] || [ -n "${{ secrets.DISCORD_WEBHOOK_URL }}" ] || [ -n "${{ secrets.NOTIFY_WEBHOOK_URL }}" ] || [ "$email_ok" -eq 1 ]; then
+            :
+          else
+            echo "::error::No notification channel configured. Add email secrets (SMTP_HOST, SMTP_USER, SMTP_PASSWORD, NOTIFY_EMAIL_TO) and/or a webhook secret."
+            missing=1
+          fi
+          exit "$missing"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
