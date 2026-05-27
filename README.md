@@ -70,14 +70,18 @@ In the repo: **Settings → Secrets and variables → Actions → New repository
 
 #### Email examples
 
-**Gmail:** use an app password (not your normal Google password).
+**Gmail:** `SMTP_PASSWORD` must be a **16-character app password**, not your normal Gmail password. If Actions fails with `Application-specific password required`, update that secret.
+
+1. Google Account → **Security** → enable **2-Step Verification**
+2. **App passwords** → create one (e.g. “Mail” / “GitHub Actions”)
+3. Put the 16-character password in `SMTP_PASSWORD` (no spaces)
 
 | Secret | Value |
 |--------|-------|
 | `SMTP_HOST` | `smtp.gmail.com` |
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | `you@gmail.com` |
-| `SMTP_PASSWORD` | your 16-character app password |
+| `SMTP_PASSWORD` | 16-character app password |
 | `NOTIFY_EMAIL_TO` | `you@gmail.com` |
 
 **Outlook / Microsoft 365:**

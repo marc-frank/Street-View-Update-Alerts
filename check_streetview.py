@@ -221,16 +221,26 @@ def send_email(subject: str, body: str) -> None:
     message["To"] = ", ".join(to_addrs)
     message.set_content(body)
 
-    if use_ssl:
-        with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
-            smtp.login(user, password)
-            smtp.send_message(message)
-    else:
-        with smtplib.SMTP(host, port, timeout=30) as smtp:
-            if use_tls:
-                smtp.starttls()
-            smtp.login(user, password)
-            smtp.send_message(message)
+    try:
+        if use_ssl:
+            with smtplib.SMTP_SSL(host, port, timeout=30) as smtp:
+                smtp.login(user, password)
+                smtp.send_message(message)
+        else:
+            with smtplib.SMTP(host, port, timeout=30) as smtp:
+                if use_tls:
+                    smtp.starttls()
+                smtp.login(user, password)
+                smtp.send_message(message)
+    except smtplib.SMTPAuthenticationError as exc:
+        hint = ""
+        if "gmail" in host.lower() or "google" in str(exc).lower():
+            hint = (
+                " Gmail requires an app password in SMTP_PASSWORD (not your normal "
+                "login password). Create one: Google Account → Security → 2-Step "
+                "Verification → App passwords."
+            )
+        raise RuntimeError(f"SMTP login failed for {user!r}.{hint}") from exc
 
 
 def notify(
