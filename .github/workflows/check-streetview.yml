@@ -60,6 +60,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           NOTIFY_EMAIL_TO: ${{ secrets.NOTIFY_EMAIL_TO }}
           NOTIFY_EMAIL_FROM: ${{ secrets.NOTIFY_EMAIL_FROM }}
+          EMAIL_EVERY_RUN: ${{ secrets.EMAIL_EVERY_RUN }}
         run: python check_streetview.py
 
       # Run even when the check exits 1 (partial location errors). Otherwise

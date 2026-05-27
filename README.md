@@ -64,6 +64,7 @@ In the repo: **Settings → Secrets and variables → Actions → New repository
 | `SMTP_PASSWORD` | no* | SMTP password or [app password](https://support.google.com/accounts/answer/185833) |
 | `NOTIFY_EMAIL_TO` | no* | Recipient(s), comma-separated |
 | `NOTIFY_EMAIL_FROM` | no | From address (defaults to `SMTP_USER`) |
+| `EMAIL_EVERY_RUN` | no | Set to `true` to send a status email every run (not only on changes) |
 
 \* Configure at least one notification channel (Slack, Discord, webhook, or the full email set: `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `NOTIFY_EMAIL_TO`). You can enable **multiple channels at once** — all configured channels receive the same alert.
 
@@ -141,3 +142,13 @@ Default: daily at 09:00 Europe/Berlin (see `.github/workflows/check-streetview.y
 2. Compare `pano_id` and `date` to `state.json`.
 3. On change, send a notification with a Google Maps panorama link.
 4. Commit updated `state.json` so the next run has the latest baseline.
+
+### Email on every check
+
+By default, email is sent only when Street View changes. To get a daily “all clear” (or change) email, add repository secret `EMAIL_EVERY_RUN` = `true`, or locally:
+
+```powershell
+$env:EMAIL_EVERY_RUN = "true"
+```
+
+Slack/Discord still alert only on changes.

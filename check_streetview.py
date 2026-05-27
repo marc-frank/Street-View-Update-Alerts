@@ -126,6 +126,28 @@ def format_change_message(
     return "\n".join(lines)
 
 
+def format_status_message(
+    entry: dict[str, Any],
+    current: dict[str, str | None],
+    metadata: dict[str, Any],
+    status: str,
+) -> str:
+    name = entry.get("name") or location_key(entry)
+    lat = entry["lat"]
+    lng = entry["lng"]
+    loc = metadata.get("location", {})
+    maps_lat = loc.get("lat", lat)
+    maps_lng = loc.get("lng", lng)
+
+    lines = [
+        f"{name} ({location_key(entry)}): {status}",
+        f"  pano_id: {current.get('pano_id')}",
+        f"  date:    {current.get('date')}",
+        f"  Maps: https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={maps_lat},{maps_lng}",
+    ]
+    return "\n".join(lines)
+
+
 def send_slack(webhook_url: str, text: str) -> None:
     response = requests.post(
         webhook_url,
@@ -211,7 +233,12 @@ def send_email(subject: str, body: str) -> None:
             smtp.send_message(message)
 
 
-def notify(text: str) -> None:
+def notify(
+    text: str,
+    *,
+    subject: str = "Street View update detected",
+    include_email: bool = True,
+) -> None:
     slack_url = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
     discord_url = os.environ.get("DISCORD_WEBHOOK_URL", "").strip()
     generic_url = os.environ.get("NOTIFY_WEBHOOK_URL", "").strip()
@@ -231,13 +258,17 @@ def notify(text: str) -> None:
         )
         response.raise_for_status()
         sent = True
-    if email_configured():
-        send_email("Street View update detected", text)
+    if include_email and email_configured():
+        send_email(subject, text)
         sent = True
 
     if not sent:
         print("No notification channel configured; printing alert:\n")
         print(text)
+
+
+def email_every_run_enabled() -> bool:
+    return _env_bool("EMAIL_EVERY_RUN", False)
 
 
 def main() -> int:
@@ -262,6 +293,7 @@ def main() -> int:
     state: dict[str, Any] = load_json(STATE_FILE, {})
     now = datetime.now(timezone.utc).isoformat()
     changes: list[str] = []
+    statuses: list[str] = []
     errors: list[str] = []
     state_changed = False
 
@@ -295,12 +327,15 @@ def main() -> int:
             state_changed = True
 
             if changed:
+                status = "UPDATED"
                 changes.append(
                     format_change_message(entry, prev_snapshot, current, metadata)
                 )
             else:
                 status = "initialized" if is_first_run else "unchanged"
-                print(f"[{key}] {status} — pano_id={current.get('pano_id')} date={current.get('date')}")
+
+            statuses.append(format_status_message(entry, current, metadata, status))
+            print(f"[{key}] {status} — pano_id={current.get('pano_id')} date={current.get('date')}")
 
         except Exception as exc:  # noqa: BLE001 — collect per-location errors
             msg = f"[{key}] error: {exc}"
@@ -310,10 +345,30 @@ def main() -> int:
     if state_changed:
         save_json(STATE_FILE, state)
 
+    email_each_run = email_every_run_enabled()
+
+    if email_each_run and email_configured():
+        report_lines = [
+            f"Checked at {now}",
+            "",
+            "\n\n".join(statuses) if statuses else "(no locations checked)",
+        ]
+        if errors:
+            report_lines.extend(["", "Errors:", "\n".join(errors)])
+        if changes:
+            report_lines.extend(["", "Changes:", "", "\n\n---\n\n".join(changes)])
+
+        subject = (
+            "Street View update detected"
+            if changes
+            else "Street View check (no changes)"
+        )
+        send_email(subject, "\n".join(report_lines))
+
     if changes:
-        body = "\n\n---\n\n".join(changes)
-        notify(body)
-    elif not errors:
+        change_body = "\n\n---\n\n".join(changes)
+        notify(change_body, include_email=not email_each_run)
+    elif not errors and not email_each_run:
         print("No Street View changes detected.")
 
     return 1 if errors else 0
